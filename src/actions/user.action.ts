@@ -7,21 +7,26 @@ import { revalidatePath } from "next/cache";
 
 export async function syncUser() {
   try {
+    // 1) Get Clerk’s current userId + user data
     const { userId } = await auth();
     const user = await currentUser();
+    if (!userId || !user) return;
 
-    if (!user || !userId) return;
-
+    // 2) Look up in the DB by clerkId
     const existingUser = await prisma.user.findUnique({
-      where: {
-        clerkId: userId,
-      },
+      where: { clerkId: userId },
     });
 
+    // 3) If found, just return it
+    if (existingUser) {
+      return existingUser;
+    }
+
+    // 4) Otherwise, create a new row
     const dbUser = await prisma.user.create({
       data: {
         clerkId: userId,
-        name: `${user.firstName || ""} ${user.lastName || ""}`,
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
         username:
           user.username ?? user.emailAddresses[0].emailAddress.split("@")[0],
         email: user.emailAddresses[0].emailAddress,
@@ -29,9 +34,12 @@ export async function syncUser() {
       },
     });
 
+    // 5) Optionally trigger any cache invalidation
+    revalidatePath("/");
+
     return dbUser;
-  } catch (error) {
-    console.log("Error in syncUser", error);
+  } catch (err) {
+    console.log("Error in syncUser", err);
   }
 }
 
@@ -55,7 +63,7 @@ export async function getUserByClerkId(clerkId: string) {
 export async function getDbUserId() {
   const { userId: clerkId } = await auth();
 
-  if (!clerkId) throw Error("Unauthorized");
+  if (!clerkId) return null;
 
   const user = await getUserByClerkId(clerkId);
   if (!user) throw new Error("User not found");
@@ -66,6 +74,7 @@ export async function getDbUserId() {
 export async function getRandomUsers() {
   try {
     const userId = await getDbUserId();
+    if (!userId) return [];
 
     // Get 3 Random Users Excluding Ourself And Users Following
     const randomUsers = await prisma.user.findMany({
@@ -106,6 +115,8 @@ export async function getRandomUsers() {
 export async function toggleFollow(targetUserId: string) {
   try {
     const userId = await getDbUserId();
+
+    if (!userId) return;
 
     if (targetUserId === userId) throw error("You cannot follow yourself");
 
