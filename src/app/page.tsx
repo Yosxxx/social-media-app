@@ -1,4 +1,5 @@
 import CreatePost from "@/components/CreatePost";
+import WhoToFollow from "@/components/WhoToFollow";
 import { currentUser } from "@clerk/nextjs/server";
 
 export default async function Home() {
@@ -11,7 +12,9 @@ export default async function Home() {
           <CreatePost />
         </div>
       ) : null}
-      <div className="grid cols">Who To Follow</div>
+      <div className="grid cols">
+        <WhoToFollow />
+      </div>
     </div>
   );
 }
