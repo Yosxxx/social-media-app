@@ -1,7 +1,8 @@
 // components/ImageUpload.tsx
 "use client";
 
-import { UploadDropzone } from "@/utils/uploadthing";
+import { useState } from "react";
+import { useUploadThing } from "@/utils/uploadthing"; // ← now available
 import { XIcon } from "lucide-react";
 
 interface ImageUploadProps {
@@ -15,7 +16,26 @@ export default function ImageUpload({
   onChange,
   value,
 }: ImageUploadProps) {
-  // if an image is already chosen, show a preview + “X” button
+  const [loading, setLoading] = useState(false);
+  const { startUpload } = useUploadThing(endpoint);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const uploaded = (await startUpload([file])) ?? [];
+      if (uploaded.length > 0 && uploaded[0].ufsUrl) {
+        onChange(uploaded[0].ufsUrl);
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (value) {
     return (
       <div className="relative w-full h-80 rounded-2xl overflow-hidden">
@@ -25,9 +45,9 @@ export default function ImageUpload({
           className="object-cover w-full h-full"
         />
         <button
+          type="button"
           onClick={() => onChange("")}
           className="absolute top-2 right-2 p-1 bg-black/60 rounded-full"
-          type="button"
         >
           <XIcon className="h-4 w-4 text-white" />
         </button>
@@ -35,21 +55,22 @@ export default function ImageUpload({
     );
   }
 
-  // otherwise render the big dashed dropzone
   return (
-    <div className="w-full h-80  flex flex-col items-center justify-center text-center p-8 space-y-4">
-      {/* You can also pass className directly into UploadDropzone if it supports it */}
-      <UploadDropzone
-        endpoint={endpoint}
-        onClientUploadComplete={(files) => {
-          const f = files?.[0];
-          if (f) onChange(f.ufsUrl);
-        }}
-        onUploadError={(err) => console.error(err)}
-        className="h-80 rounded-2xl border-2 border-dashed border-gray-600 flex items-center justify-center"
-      >
-        {/* Children here if UploadDropzone supports custom inner UI */}
-      </UploadDropzone>
-    </div>
+    <label className="w-full h-80 flex flex-col items-center justify-center p-8 space-y-4 border-2 border-dashed border-gray-600 rounded-2xl cursor-pointer">
+      {loading ? (
+        <p>Uploading…</p>
+      ) : (
+        <>
+          <p className="font-medium">Click or drag to select an image</p>
+          <p className="text-sm text-gray-500">PNG, JPG, GIF up to 10 MB</p>
+        </>
+      )}
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+    </label>
   );
 }
