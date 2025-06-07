@@ -10,7 +10,7 @@ async function WhoToFollow() {
   if (users.length === 0) return null;
 
   return (
-    <Card className="h-fit">
+    <Card className="h-fit max-lg:hidden">
       <CardHeader>
         <CardTitle>Who to Follow</CardTitle>
       </CardHeader>
