@@ -6,7 +6,7 @@ import { useUploadThing } from "@/utils/uploadthing"; // ← now available
 import { XIcon } from "lucide-react";
 
 interface ImageUploadProps {
-  onChange: (url: string) => void;
+  onChange: (url: string, key: string) => void;
   value: string;
   endpoint: "postImage";
 }
@@ -26,11 +26,11 @@ export default function ImageUpload({
     setLoading(true);
     try {
       const uploaded = (await startUpload([file])) ?? [];
-      if (uploaded.length > 0 && uploaded[0].ufsUrl) {
-        onChange(uploaded[0].ufsUrl);
+      const first = uploaded[0];
+      // startUpload returns { fileUrl, fileKey }
+      if (first?.ufsUrl && first?.key) {
+        onChange(first.ufsUrl, first.key);
       }
-    } catch (err) {
-      console.error("Upload failed:", err);
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export default function ImageUpload({
         />
         <button
           type="button"
-          onClick={() => onChange("")}
+          onClick={() => onChange("", "")}
           className="absolute top-2 right-2 p-1 bg-black/60 rounded-full"
         >
           <XIcon className="h-4 w-4 text-white" />

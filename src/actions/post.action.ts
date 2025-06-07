@@ -3,23 +3,27 @@
 import { prisma } from "@/lib/prisma";
 import { getDbUserId } from "./user.action";
 import { revalidatePath } from "next/cache";
+import { UTApi } from "uploadthing/server";
 
-export async function createPost(content: string, image: string) {
+export async function createPost(
+  content: string,
+  imageUrl: string,
+  imageKey: string
+) {
   try {
     const userId = await getDbUserId();
-
-    if (!userId) return;
+    if (!userId) return { success: false };
 
     const post = await prisma.post.create({
       data: {
         content,
-        image: image,
+        image: imageUrl, // public URL
+        imageKey: imageKey, // internal key
         authorId: userId,
       },
     });
 
     revalidatePath("/");
-
     return { success: true, post };
   } catch (error) {
     console.error("Failed to create post:", error);
@@ -190,24 +194,34 @@ export async function createComment(postId: string, content: string) {
   }
 }
 
+const utapi = new UTApi();
+
 export async function deletePost(postId: string) {
   try {
     const userId = await getDbUserId();
 
+    // 1) Load authorId AND imageKey from the DB
     const post = await prisma.post.findUnique({
       where: { id: postId },
-      select: { authorId: true },
+      select: { authorId: true, imageKey: true },
     });
 
     if (!post) throw new Error("Post not found");
     if (post.authorId !== userId)
       throw new Error("Unauthorized - no delete permission");
 
-    await prisma.post.delete({
-      where: { id: postId },
-    });
+    // 2) If there’s an UploadThing key, delete the file first
+    if (post.imageKey) {
+      try {
+        await utapi.deleteFiles([post.imageKey]);
+      } catch (e) {
+        console.error("Failed to delete image on UploadThing:", e);
+        // optionally continue anyway or throw
+      }
+    }
 
-    revalidatePath("/"); // purge the cache
+    await prisma.post.delete({ where: { id: postId } });
+    revalidatePath("/");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete post:", error);

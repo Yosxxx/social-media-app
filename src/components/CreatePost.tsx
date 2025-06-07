@@ -15,6 +15,7 @@ function CreatePost() {
   const { user } = useUser();
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageKey, setImageKey] = useState(""); // ← new state
   const [isPosting, setIsPosting] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
 
@@ -23,17 +24,15 @@ function CreatePost() {
 
     setIsPosting(true);
     try {
-      const result = await createPost(content, imageUrl);
+      const result = await createPost(content, imageUrl, imageKey);
       if (result?.success) {
-        // reset the form
         setContent("");
         setImageUrl("");
+        setImageKey(""); // ← reset key
         setShowImageUpload(false);
-
         toast.success("Post created successfully");
       }
-    } catch (error) {
-      console.error("Failed to create post:", error);
+    } catch {
       toast.error("Failed to create post");
     } finally {
       setIsPosting(false);
@@ -59,16 +58,15 @@ function CreatePost() {
           </div>
 
           {(showImageUpload || imageUrl) && (
-            <div className="border rounded-lg p-10">
-              <ImageUpload
-                endpoint="postImage"
-                value={imageUrl}
-                onChange={(url) => {
-                  setImageUrl(url);
-                  if (!url) setShowImageUpload(false);
-                }}
-              />
-            </div>
+            <ImageUpload
+              endpoint="postImage"
+              value={imageUrl}
+              onChange={(url: string, key: string) => {
+                setImageUrl(url);
+                setImageKey(key);
+                if (!url) setShowImageUpload(false);
+              }}
+            />
           )}
 
           <div className="flex items-center justify-between border-t pt-4">
