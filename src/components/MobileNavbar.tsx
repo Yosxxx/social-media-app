@@ -18,17 +18,40 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState } from "react";
-import { useAuth, SignInButton, SignOutButton } from "@clerk/nextjs";
+import { useUser, SignInButton, SignOutButton } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 
-function MobileNavbar() {
+export default function MobileNavbar() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const { isSignedIn } = useAuth();
+  const { user, isSignedIn, isLoaded } = useUser();
   const { theme, setTheme } = useTheme();
+
+  // Don't render links until Clerk has loaded
+  if (!isLoaded) {
+    return (
+      <div className="flex md:hidden items-center space-x-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="mr-2"
+        >
+          <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      </div>
+    );
+  }
+
+  // Build the profile handle just like desktop
+  const handle =
+    user?.username ?? user?.emailAddresses[0].emailAddress.split("@")[0] ?? "";
 
   return (
     <div className="flex md:hidden items-center space-x-2">
+      {/* Theme toggle */}
       <Button
         variant="ghost"
         size="icon"
@@ -40,23 +63,25 @@ function MobileNavbar() {
         <span className="sr-only">Toggle theme</span>
       </Button>
 
+      {/* Mobile menu sheet */}
       <Sheet open={showMobileMenu} onOpenChange={setShowMobileMenu}>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon">
             <MenuIcon className="h-5 w-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="right" className="w-[300px]">
+        <SheetContent
+          side="right"
+          className="w-[300px]"
+          onInteractOutside={() => setShowMobileMenu(false)}
+        >
           <SheetHeader>
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col space-y-4 mt-6">
-            <Button
-              variant="ghost"
-              className="flex items-center gap-3 justify-start"
-              asChild
-            >
-              <Link href="/">
+            {/* Home */}
+            <Button variant="ghost" asChild className="flex items-center gap-3">
+              <Link href="/" onClick={() => setShowMobileMenu(false)}>
                 <HomeIcon className="w-4 h-4" />
                 Home
               </Link>
@@ -64,30 +89,42 @@ function MobileNavbar() {
 
             {isSignedIn ? (
               <>
+                {/* Notifications */}
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-3 justify-start"
                   asChild
+                  className="flex items-center gap-3"
                 >
-                  <Link href="/notifications">
+                  <Link
+                    href="/notifications"
+                    onClick={() => setShowMobileMenu(false)}
+                  >
                     <BellIcon className="w-4 h-4" />
                     Notifications
                   </Link>
                 </Button>
+
+                {/* Profile */}
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-3 justify-start"
                   asChild
+                  className="flex items-center gap-3"
                 >
-                  <Link href="/profile">
+                  <Link
+                    href={`/profile/${handle}`}
+                    onClick={() => setShowMobileMenu(false)}
+                  >
                     <UserIcon className="w-4 h-4" />
                     Profile
                   </Link>
                 </Button>
+
+                {/* Logout */}
                 <SignOutButton>
                   <Button
                     variant="ghost"
-                    className="flex items-center gap-3 justify-start w-full"
+                    className="flex items-center gap-3 w-full"
+                    onClick={() => setShowMobileMenu(false)}
                   >
                     <LogOutIcon className="w-4 h-4" />
                     Logout
@@ -95,8 +132,13 @@ function MobileNavbar() {
                 </SignOutButton>
               </>
             ) : (
+              /* Sign In */
               <SignInButton mode="modal">
-                <Button variant="default" className="w-full">
+                <Button
+                  variant="default"
+                  className="w-full"
+                  onClick={() => setShowMobileMenu(false)}
+                >
                   Sign In
                 </Button>
               </SignInButton>
@@ -107,5 +149,3 @@ function MobileNavbar() {
     </div>
   );
 }
-
-export default MobileNavbar;
