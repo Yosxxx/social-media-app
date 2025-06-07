@@ -1,3 +1,4 @@
+// src/app/profile/[username]/page.tsx
 import { notFound } from "next/navigation";
 import ProfilePageClient from "@/components/ProfilePageClient";
 import {
@@ -10,16 +11,14 @@ import {
 export default async function ProfilePageServer({
   params,
 }: {
-  params: { username: string };
+  params: Promise<{ username: string }>;
 }) {
-  // 1) await params
+  // unwrap the promise
   const { username } = await params;
 
-  // 2) fetch the profile
   const user = await getProfileByUsername(username);
   if (!user) notFound();
 
-  // 3) fetch everything in parallel
   const [posts, likedPosts, isCurrentUserFollowing] = await Promise.all([
     getUserPosts(user.id),
     getUserLikedPosts(user.id),
