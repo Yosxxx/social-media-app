@@ -7,7 +7,7 @@ import {
   toggleLike,
 } from "@/actions/post.action";
 import { SignInButton, useUser } from "@clerk/nextjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Card, CardContent } from "./ui/card";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import {
   SendIcon,
 } from "lucide-react";
 import { Textarea } from "./ui/textarea";
+import { XIcon } from "lucide-react";
 
 type Posts = Awaited<ReturnType<typeof getPosts>>;
 type Post = Posts[number];
@@ -37,6 +38,20 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
   );
   const [optimisticLikes, setOptmisticLikes] = useState(post._count.likes);
   const [showComments, setShowComments] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
+
+  useEffect(() => {
+    if (isImageOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isImageOpen]);
 
   const handleLike = async () => {
     if (isLiking) return;
@@ -134,7 +149,8 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
               <img
                 src={post.image}
                 alt="Post content"
-                className="w-full h-auto object-cover"
+                className="w-full h-auto object-cover cursor-pointer transition hover:brightness-75"
+                onClick={() => setIsImageOpen(true)}
               />
             </div>
           )}
@@ -260,6 +276,32 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
             </div>
           )}
         </div>
+
+        {isImageOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setIsImageOpen(false)}
+          >
+            <div
+              className="relative max-w-3xl w-full"
+              onClick={(e) => e.stopPropagation()} // Prevent close when clicking the image
+            >
+              <button
+                className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded-full p-1"
+                onClick={() => setIsImageOpen(false)}
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+              {post.image && (
+                <img
+                  src={post.image}
+                  alt="Zoomed post"
+                  className="w-full h-auto rounded-lg object-contain max-h-[90vh] mx-auto"
+                />
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
