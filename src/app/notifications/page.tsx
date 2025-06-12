@@ -13,6 +13,7 @@ import { HeartIcon, MessageCircleIcon, UserPlusIcon } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 type Notifications = Awaited<ReturnType<typeof getNotifications>>;
 type Notification = Notifications[number];
@@ -80,19 +81,24 @@ function NotificationsPage() {
                     !notification.read ? "bg-muted/50" : ""
                   }`}
                 >
-                  <Avatar className="mt-1">
-                    <AvatarImage
-                      src={notification.creator.image ?? "/avatar.png"}
-                    />
-                  </Avatar>
+                  <Link href={`/profile/${notification.creator.username}`}>
+                    <Avatar className="mt-1 cursor-pointer hover:opacity-80 transition">
+                      <AvatarImage
+                        src={notification.creator.image ?? "/avatar.png"}
+                      />
+                    </Avatar>
+                  </Link>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       {getNotificationIcon(notification.type)}
                       <span>
-                        <span className="font-medium">
+                        <Link
+                          href={`/profile/${notification.creator.username}`}
+                          className="font-medium hover:underline"
+                        >
                           {notification.creator.name ??
                             notification.creator.username}
-                        </span>{" "}
+                        </Link>{" "}
                         {notification.type === "FOLLOW"
                           ? "started following you"
                           : notification.type === "LIKE"
@@ -140,4 +146,5 @@ function NotificationsPage() {
     </div>
   );
 }
+
 export default NotificationsPage;
