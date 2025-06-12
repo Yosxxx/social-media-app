@@ -6,33 +6,65 @@ import { revalidatePath } from "next/cache";
 import { getDbUserId } from "./user.action";
 
 export async function getProfileByUsername(username: string) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { username: username },
-      select: {
-        id: true,
-        name: true,
-        username: true,
-        bio: true,
-        image: true,
-        location: true,
-        website: true,
-        createdAt: true,
-        _count: {
-          select: {
-            followers: true,
-            following: true,
-            posts: true,
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      bio: true,
+      image: true,
+      location: true,
+      website: true,
+      createdAt: true,
+      _count: {
+        select: {
+          followers: true,
+          following: true,
+          posts: true,
+        },
+      },
+
+      // 1) Grab the join rows, but only select the nested User record
+      followers: {
+        select: {
+          follower: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              image: true,
+            },
           },
         },
       },
-    });
+      following: {
+        select: {
+          following: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      },
+    },
+  });
 
-    return user;
-  } catch (error) {
-    console.error("Error fetching profile:", error);
-    throw new Error("Failed to fetch profile");
-  }
+  if (!user) throw new Error("User not found");
+
+  // 2) Flatten into plain arrays of users
+  const flatFollowers = user.followers.map((f) => f.follower);
+  const flatFollowing = user.following.map((f) => f.following);
+
+  // 3) Return everything, replacing the join‐table arrays
+  return {
+    ...user,
+    followers: flatFollowers,
+    following: flatFollowing,
+  };
 }
 
 export async function getUserPosts(userId: string) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo, useEffect } from "react";
 import {
   getProfileByUsername,
   getUserPosts,
@@ -7,6 +8,7 @@ import {
 } from "@/actions/profile.action";
 import { toggleFollow } from "@/actions/user.action";
 import PostCard from "@/components/PostCard";
+import FollowingFollowersModal from "@/components/FollowingFollowersModal";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,30 +34,91 @@ import {
   LinkIcon,
   MapPinIcon,
 } from "lucide-react";
-import { useState } from "react";
 import toast from "react-hot-toast";
 
-type User = Awaited<ReturnType<typeof getProfileByUsername>>;
+type Profile = Awaited<ReturnType<typeof getProfileByUsername>>;
 type Posts = Awaited<ReturnType<typeof getUserPosts>>;
 
 interface ProfilePageClientProps {
-  user: NonNullable<User>;
+  user: NonNullable<Profile>;
   posts: Posts;
   likedPosts: Posts;
   isFollowing: boolean;
 }
 
-function ProfilePageClient({
+export default function ProfilePageClient({
   isFollowing: initialIsFollowing,
   likedPosts,
   posts,
   user,
 }: ProfilePageClientProps) {
   const { user: currentUser } = useUser();
+
+  // ---------- Profile edit + follow toggles ----------
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
 
+  // ---------- Modal open state ----------
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+
+  // ---------- Local lists + search terms ----------
+  type SimpleUser = {
+    id: string;
+    username: string;
+    name: string | null;
+    image: string | null;
+  };
+
+  const [followersList, setFollowersList] = useState<SimpleUser[]>(
+    user.followers ?? []
+  );
+  const [followingList, setFollowingList] = useState<SimpleUser[]>(
+    user.following ?? []
+  );
+
+  const [followersSearch, setFollowersSearch] = useState("");
+  const [followingSearch, setFollowingSearch] = useState("");
+
+  // Fetch fresh data when modals open
+  useEffect(() => {
+    if (showFollowersModal) {
+      fetch(`/api/followers/${user.username}`)
+        .then((res) => res.json())
+        .then((data: SimpleUser[]) => setFollowersList(data));
+    }
+  }, [showFollowersModal, user.username]);
+
+  useEffect(() => {
+    if (showFollowingModal) {
+      fetch(`/api/following/${user.username}`)
+        .then((res) => res.json())
+        .then((data: SimpleUser[]) => setFollowingList(data));
+    }
+  }, [showFollowingModal, user.username]);
+
+  // Filtered views
+  const filteredFollowers = useMemo(
+    () =>
+      followersList.filter(
+        (u) =>
+          u.username.toLowerCase().includes(followersSearch.toLowerCase()) ||
+          (u.name ?? "").toLowerCase().includes(followersSearch.toLowerCase())
+      ),
+    [followersList, followersSearch]
+  );
+  const filteredFollowing = useMemo(
+    () =>
+      followingList.filter(
+        (u) =>
+          u.username.toLowerCase().includes(followingSearch.toLowerCase()) ||
+          (u.name ?? "").toLowerCase().includes(followingSearch.toLowerCase())
+      ),
+    [followingList, followingSearch]
+  );
+
+  // ---------- Edit‐profile form ----------
   const [editForm, setEditForm] = useState({
     name: user.name || "",
     bio: user.bio || "",
@@ -65,10 +128,7 @@ function ProfilePageClient({
 
   const handleEditSubmit = async () => {
     const formData = new FormData();
-    Object.entries(editForm).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
+    Object.entries(editForm).forEach(([k, v]) => formData.append(k, v));
     const result = await updateProfile(formData);
     if (result.success) {
       setShowEditDialog(false);
@@ -76,14 +136,14 @@ function ProfilePageClient({
     }
   };
 
+  // ---------- Follow/unfollow ----------
   const handleFollow = async () => {
     if (!currentUser) return;
-
     try {
       setIsUpdatingFollow(true);
       await toggleFollow(user.id);
-      setIsFollowing(!isFollowing);
-    } catch (error) {
+      setIsFollowing((f) => !f);
+    } catch {
       toast.error("Failed to update follow status");
     } finally {
       setIsUpdatingFollow(false);
@@ -94,11 +154,12 @@ function ProfilePageClient({
     currentUser?.username === user.username ||
     currentUser?.emailAddresses[0].emailAddress.split("@")[0] === user.username;
 
-  const formattedDate = format(new Date(user.createdAt), "MMMM yyyy");
+  const joined = format(new Date(user.createdAt), "MMMM yyyy");
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="grid grid-cols-1 gap-6">
+        {/* ========== PROFILE HEADER ========== */}
         <div className="w-full max-w-lg mx-auto">
           <Card className="bg-card">
             <CardContent className="pt-6">
@@ -112,37 +173,36 @@ function ProfilePageClient({
                 <p className="text-muted-foreground">@{user.username}</p>
                 <p className="mt-2 text-sm">{user.bio}</p>
 
-                {/* PROFILE STATS */}
+                {/* — STATS — */}
                 <div className="w-full mt-6">
-                  <div className="flex justify-between mb-4">
-                    <div>
+                  <div className="flex justify-center items-baseline gap-x-5">
+                    <button
+                      onClick={() => setShowFollowingModal(true)}
+                      className="flex flex-col items-center"
+                    >
                       <div className="font-semibold">
                         {user._count.following.toLocaleString()}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Following
                       </div>
-                    </div>
+                    </button>
                     <Separator orientation="vertical" />
-                    <div>
+                    <button
+                      onClick={() => setShowFollowersModal(true)}
+                      className="flex flex-col items-center"
+                    >
                       <div className="font-semibold">
                         {user._count.followers.toLocaleString()}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Followers
                       </div>
-                    </div>
-                    <Separator orientation="vertical" />
-                    <div>
-                      <div className="font-semibold">
-                        {user._count.posts.toLocaleString()}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Posts</div>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* "FOLLOW & EDIT PROFILE" BUTTONS */}
+                {/* — ACTION BUTTON — */}
                 {!currentUser ? (
                   <SignInButton mode="modal">
                     <Button className="w-full mt-4">Follow</Button>
@@ -166,7 +226,7 @@ function ProfilePageClient({
                   </Button>
                 )}
 
-                {/* LOCATION & WEBSITE */}
+                {/* — META — */}
                 <div className="w-full mt-6 space-y-2 text-sm">
                   {user.location && (
                     <div className="flex items-center text-muted-foreground">
@@ -183,9 +243,9 @@ function ProfilePageClient({
                             ? user.website
                             : `https://${user.website}`
                         }
-                        className="hover:underline"
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="hover:underline"
                       >
                         {user.website}
                       </a>
@@ -193,7 +253,7 @@ function ProfilePageClient({
                   )}
                   <div className="flex items-center text-muted-foreground">
                     <CalendarIcon className="size-4 mr-2" />
-                    Joined {formattedDate}
+                    Joined {joined}
                   </div>
                 </div>
               </div>
@@ -201,20 +261,19 @@ function ProfilePageClient({
           </Card>
         </div>
 
+        {/* ========== TABS ========== */}
         <Tabs defaultValue="posts" className="w-full">
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
             <TabsTrigger
               value="posts"
-              className="flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary
-               data-[state=active]:bg-transparent px-6 font-semibold"
+              className="flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 font-semibold"
             >
               <FileTextIcon className="size-4" />
               Posts
             </TabsTrigger>
             <TabsTrigger
               value="likes"
-              className="flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary
-               data-[state=active]:bg-transparent px-6 font-semibold"
+              className="flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 font-semibold"
             >
               <HeartIcon className="size-4" />
               Likes
@@ -224,8 +283,8 @@ function ProfilePageClient({
           <TabsContent value="posts" className="mt-6">
             <div className="space-y-6">
               {posts.length > 0 ? (
-                posts.map((post) => (
-                  <PostCard key={post.id} post={post} dbUserId={user.id} />
+                posts.map((p) => (
+                  <PostCard key={p.id} post={p} dbUserId={user.id} />
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -238,8 +297,8 @@ function ProfilePageClient({
           <TabsContent value="likes" className="mt-6">
             <div className="space-y-6">
               {likedPosts.length > 0 ? (
-                likedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} dbUserId={user.id} />
+                likedPosts.map((p) => (
+                  <PostCard key={p.id} post={p} dbUserId={user.id} />
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -250,6 +309,7 @@ function ProfilePageClient({
           </TabsContent>
         </Tabs>
 
+        {/* ========== EDIT PROFILE DIALOG ========== */}
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -311,7 +371,36 @@ function ProfilePageClient({
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* ========== FOLLOWERS MODAL ========== */}
+      <FollowingFollowersModal
+        isOpen={showFollowersModal}
+        onClose={() => setShowFollowersModal(false)}
+        title="Followers"
+        users={filteredFollowers.map((u) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name ?? undefined,
+          image: u.image ?? undefined,
+        }))}
+        searchTerm={followersSearch}
+        onSearchChange={setFollowersSearch}
+      />
+
+      {/* ========== FOLLOWING MODAL ========== */}
+      <FollowingFollowersModal
+        isOpen={showFollowingModal}
+        onClose={() => setShowFollowingModal(false)}
+        title="Following"
+        users={filteredFollowing.map((u) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name ?? undefined,
+          image: u.image ?? undefined,
+        }))}
+        searchTerm={followingSearch}
+        onSearchChange={setFollowingSearch}
+      />
     </div>
   );
 }
-export default ProfilePageClient;
