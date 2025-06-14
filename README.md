@@ -13,6 +13,51 @@ pnpm dev
 # or
 bun dev
 ```
+# Added Features
+---
+
+**(V) For Done
+
+🐞 Bug Fixes
+
+* **Mobile**
+
+  * Fix navigation links in the mobile navbar (v)
+  * Fix errors when posting photos from mobile (v)
+  * Sync UploadThing with the database: when a user deletes a post containing an image, also delete that image in UploadThing (v)
+
+* **Desktop (PC)**
+
+  * Fix issues with image posting on desktop (v)
+  * Correct the height of the “Who to Follow” widget (v)
+
+---
+
+✨ New Features
+
+* **General (Mobile & Desktop)**
+
+  * View followers list  (v)
+  * View following list (v)
+  * Add a search bar (v)
+  * Enable image zoom/enlarge on posts (v)
+  * Shorten notification height (v)
+  * Allow users to delete and edit their own comments
+  * View user profiles directly from comments (v)
+  * Add video upload functionality
+  * Auto-refresh the feed when new posts are detected
+
+* **Mobile Only**
+
+  * Add a login component above the post feed
+  * Remove the “Who to Follow” section  (v)
+
+* **Desktop (PC) Only**
+
+  * Center-align posts in the desktop layout
+
+---
+
 
 ## DISCLAIMER
 
